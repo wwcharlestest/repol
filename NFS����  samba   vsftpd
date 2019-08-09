@@ -1,0 +1,85 @@
+网络文件服务系统 NFS
+yum install nfs-utils
+UNIX/LINUX
+NFS服务器端配置文件
+添加共享目录  /share1  /share2  /share3  /share4  /share5
+
+在/etc/exports的配置好客户端的IP地址或者主机名
+/share1 s1.example.com
+/share2 192.168.1.5(ro)
+/share3 *.example.com 192.168.1.0/24(rw)
+/share4 server0[2-9].example.com
+/share5 *(ro)
+保存退出就可以
+systemctl status nfs.service
+把nfs服务重启一下，把防火墙关闭（这个还不确定是否要关闭），服务端就可以了
+客户端
+创建挂载点 mdir f1
+mount -t xfs 192.168.1.5:/share1  f1
+echo‘192.168.0.20:/share1   /nfs1  nfs default  0 0 ’ >> /etc/fstab    配置开机自动访问到这个共享文件目录               目录  文件系统   
+exportfs -a 刷新配置文件
+exportfs:一般用在当NFS服务启动后，使用此命令来控制共享目录的导出
+
+用法：exportfs [-aruv] 
+-a ：全部mount或者unmount /etc/exports中的内容 
+-r ：重新mount /etc/exports中分享出来的目录 
+-u ：umount目录 
+-v ：在export的时候，将详细的信息输出到屏幕上。 
+具体例子： 
+# exportfs -au 卸载所有共享目录 
+# exportfs -rv 重新共享所有目录并输出详细信息
+SAMBA     （Server Message Block，服务消息块）
+CIFS: Common Internet File System通用网络文件系统，是Linux与windows主机之间共享的协议，samba实现了这个协议，所以可以实现wondows与linux之间的文件共享服务。
+监听的端口有：
+tcp/137 udp/137 tcp/139 udp/139
+137：是实现NetBIOS协议，实现解析windows之间主机名的解析，实现在windows的网上邻居可以看到Linux的主机名。
+139：是实现cifs协议
+安装 yum install samba
+配置
+启动
+服务脚本：
+/etc/rc.d/init.d/nmb # 实现 NetBIOS协议
+/etc/rc.d/init.d/smb  # 实现cifs协议
+编辑主配置文件 vim /etc/samba/smb.conf                               
+        mydata1          共享名称
+            pash=/data1     共享路径
+            hosts allow=172.17.15.0     允许该IP地址访问     也可以写成interfaces = lo eth0 192.168.12.2/24 192.168.13.2/24 # 接口+ip控制
+            ralid users=zhao  qian sun
+            comment = Comment String # 注释信息
+            guest ok = {yes|no} | public = {yes|no} # 是否启用来宾账号
+            writable = {yes|no} |  read only = {yes|no} # 共享目录是否可写
+            write list = +GROUP_NAME  # 允许可写的用户列表，前面有+是代表允许可写的组
+tail -8 /etc/samba/amb.conf
+           查看是否OK :
+     testparm
+用户改密码
+useradd:zhao
+passwd zhao
+samba 改密码
+smbpasswd -a  zhao      
+smbpasswd:     a Sys_User: 添加系统用户为samba用户    -d ：禁用用户      -e: 启用用户      -x: 删除用户
+firewall-cmd --permanent  --zone=public --add-service=samba
+firewall-cmd --reload
+用另一个虚拟机
+mkdir /samba{1,2,3}
+mount -o username=zhao //172.17.15.112/mydata1 /samba1
+如果挂载不了
+yum -y install cifs-utils
+加载插件 重新输入命令
+mount -o username=zhao //172.17.15.112/mydata1 /samba1
+VSFTPd     在CentOS上默认提供的是vsftpd（Very Secure FTP），以安全著称
+用户认证配置文件：/etc/pam.d/vsftpd      
+服务脚本：/etc/rc.d/init.d/vsftpd      
+配置文件目录：/etc/vsftpd       
+主配置文件：vsftpd.conf       
+匿名用户（映射为ftp用户）共享资源位置：/var/ftp       
+系统用户通过ftp访问的资源的位置：用户自己的家目录       
+虚拟用户通过ftp访问的资源的位置：给虚拟用户指定的映射成为的系统用户的家目录
+
+yum install vsftpd
+firewall -cmd --zone=public --add-service=ftp
+firewall -cmd permanent --zone=public --add-service=ftp
+
+启动vsftpd服务
+# service vsftpd start
+# chkconfig vsftpd on
